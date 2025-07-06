@@ -163,6 +163,19 @@ body {
     transform: scale(1.02);
 }
 
+.upload-area.file-uploaded {
+    border-color: #28a745;
+    background-color: #d4edda;
+    cursor: default;
+    opacity: 0.8;
+}
+
+.upload-area.file-uploaded:hover {
+    transform: none;
+    border-color: #28a745;
+    background-color: #d4edda;
+}
+
 .upload-content i {
     font-size: 3rem;
     color: #6c757d;
@@ -860,6 +873,13 @@ body {
     .upload-area {
         padding: 30px 15px;
         margin: 15px;
+    }
+    
+    .upload-area.file-uploaded {
+        border-color: #28a745;
+        background-color: #d4edda;
+        cursor: default;
+        opacity: 0.8;
     }
     
     .upload-content h3 {

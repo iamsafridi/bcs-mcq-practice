@@ -32,7 +32,10 @@ function initializeEventListeners() {
     uploadArea.addEventListener('click', (e) => {
         // Prevent triggering if clicking on file info or remove button
         if (!e.target.closest('.file-info') && !e.target.closest('.btn')) {
-            fileInput.click();
+            // Only open file dialog if no file is currently uploaded
+            if (!window.uploadedFile) {
+                fileInput.click();
+            }
         }
     });
 }
@@ -112,6 +115,10 @@ function displayFileInfo(file) {
     fileName.textContent = file.name;
     fileSize.textContent = formatFileSize(file.size);
     fileInfo.style.display = 'block';
+    
+    // Update upload area to show it's not clickable
+    const uploadArea = document.getElementById('upload-area');
+    uploadArea.classList.add('file-uploaded');
 }
 
 function formatFileSize(bytes) {
@@ -128,6 +135,11 @@ function removeFile() {
     window.uploadedFile = null;
     window.contentType = null;
     hideSection('settings-section');
+    
+    // Reset upload area to show it's clickable again
+    const uploadArea = document.getElementById('upload-area');
+    uploadArea.classList.remove('file-uploaded');
+    
     showToast('File removed successfully!', 'info');
 }
 
