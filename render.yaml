@@ -1,0 +1,11 @@
+services:
+  - type: web
+    name: bcs-mcq-practice
+    env: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn app:app
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.9.16
+      - key: GEMINI_API_KEY
+        sync: false  # Set this in Render dashboard 

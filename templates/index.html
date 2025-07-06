@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BCS MCQ Practice System</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <header class="header">
+            <div class="header-content">
+                <h1><i class="fas fa-graduation-cap"></i> BCS MCQ Practice System</h1>
+                <p>Upload your study materials and practice with AI-generated questions</p>
+            </div>
+        </header>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <!-- Upload Section -->
+            <section id="upload-section" class="section">
+                <div class="card">
+                    <div class="card-header">
+                        <h2><i class="fas fa-upload"></i> Upload Study Material</h2>
+                        <p>Upload a PDF, DOCX, or text file from your completed chapter</p>
+                    </div>
+                    
+                    <div class="upload-area" id="upload-area">
+                        <div class="upload-content">
+                            <i class="fas fa-cloud-upload-alt"></i>
+                            <h3>Drop your file here</h3>
+                            <p>or click to browse</p>
+                            <input type="file" id="file-input" accept=".pdf,.docx,.doc,.txt" hidden>
+                            <button class="btn btn-primary" onclick="document.getElementById('file-input').click()">
+                                Choose File
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <div id="file-info" class="file-info" style="display: none;">
+                        <div class="file-details">
+                            <i class="fas fa-file-alt"></i>
+                            <div class="file-text">
+                                <h4 id="file-name"></h4>
+                                <p id="file-size"></p>
+                            </div>
+                            <button class="btn btn-secondary" onclick="removeFile()">
+                                <i class="fas fa-times"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Text Input Section -->
+            <section id="text-input-section" class="section">
+                <div class="card">
+                    <div class="card-header">
+                        <h2><i class="fas fa-edit"></i> Or Enter Text Directly</h2>
+                        <p>Paste your study material text here if you prefer not to upload a file</p>
+                    </div>
+                    
+                    <div class="text-input-area">
+                        <textarea 
+                            id="text-input" 
+                            class="form-control text-area" 
+                            placeholder="Paste your study material here... (e.g., chapter content, notes, or any text you want to practice with)"
+                            rows="8"
+                        ></textarea>
+                        <div class="text-input-actions">
+                            <button class="btn btn-primary" onclick="useTextInput()">
+                                <i class="fas fa-magic"></i> Use This Text
+                            </button>
+                            <button class="btn btn-secondary" onclick="clearTextInput()">
+                                <i class="fas fa-eraser"></i> Clear Text
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Generation Settings -->
+            <section id="settings-section" class="section" style="display: none;">
+                <div class="card">
+                    <div class="card-header">
+                        <h2><i class="fas fa-cog"></i> Quiz Settings</h2>
+                        <p>Configure your MCQ generation preferences</p>
+                    </div>
+                    
+                    <div class="settings-form">
+                        <div class="form-group">
+                            <label for="num-questions">Number of Questions:</label>
+                            <select id="num-questions" class="form-control">
+                                <option value="5">5 Questions</option>
+                                <option value="10" selected>10 Questions</option>
+                                <option value="15">15 Questions</option>
+                                <option value="20">20 Questions</option>
+                            </select>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="difficulty">Difficulty Level:</label>
+                            <select id="difficulty" class="form-control">
+                                <option value="easy">Easy</option>
+                                <option value="medium" selected>Medium</option>
+                                <option value="hard">Hard</option>
+                            </select>
+                        </div>
+                        
+                        <button class="btn btn-primary btn-large" onclick="generateMCQ()">
+                            <i class="fas fa-magic"></i> Generate MCQ Questions
+                        </button>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Loading Section -->
+            <section id="loading-section" class="section" style="display: none;">
+                <div class="card">
+                    <div class="loading-content">
+                        <div class="spinner"></div>
+                        <h3>Generating Questions...</h3>
+                        <p>Please wait while we analyze your content and create BCS-style questions</p>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Quiz Section -->
+            <section id="quiz-section" class="section" style="display: none;">
+                <div class="card">
+                    <div class="quiz-header">
+                        <div class="quiz-info">
+                            <h2><i class="fas fa-question-circle"></i> MCQ Quiz</h2>
+                            <div class="quiz-stats">
+                                <span id="question-counter">Question 1 of 10</span>
+                                <span id="score-display">Score: 0/0</span>
+                            </div>
+                        </div>
+                        <div class="progress-bar">
+                            <div class="progress-fill" id="progress-fill"></div>
+                        </div>
+                    </div>
+                    
+                    <div class="question-container">
+                        <div class="question" id="question-text"></div>
+                        
+                        <div class="options-container" id="options-container">
+                            <!-- Options will be populated here -->
+                        </div>
+                        
+                        <div class="question-actions">
+                            <button class="btn btn-secondary" id="prev-btn" onclick="previousQuestion()" disabled>
+                                <i class="fas fa-arrow-left"></i> Previous
+                            </button>
+                            <button class="btn btn-primary" id="next-btn" onclick="nextQuestion()">
+                                Next <i class="fas fa-arrow-right"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Results Section -->
+            <section id="results-section" class="section" style="display: none;">
+                <div class="card">
+                    <div class="results-header">
+                        <h2><i class="fas fa-trophy"></i> Quiz Results</h2>
+                        <div class="score-summary">
+                            <div class="score-circle">
+                                <span id="final-score">0%</span>
+                            </div>
+                            <div class="score-details">
+                                <p>Correct Answers: <span id="correct-count">0</span></p>
+                                <p>Total Questions: <span id="total-count">0</span></p>
+                                <p>Accuracy: <span id="accuracy-rate">0%</span></p>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Performance Summary -->
+                    <div class="performance-summary">
+                        <div class="performance-card correct">
+                            <i class="fas fa-check-circle"></i>
+                            <h3>Correct</h3>
+                            <span id="correct-summary">0</span>
+                        </div>
+                        <div class="performance-card incorrect">
+                            <i class="fas fa-times-circle"></i>
+                            <h3>Incorrect</h3>
+                            <span id="incorrect-summary">0</span>
+                        </div>
+                        <div class="performance-card unanswered">
+                            <i class="fas fa-question-circle"></i>
+                            <h3>Unanswered</h3>
+                            <span id="unanswered-summary">0</span>
+                        </div>
+                    </div>
+                    
+                    <!-- Detailed Results -->
+                    <div class="detailed-results">
+                        <h3><i class="fas fa-list-alt"></i> Question-by-Question Analysis</h3>
+                        <div id="question-analysis" class="question-analysis">
+                            <!-- Question analysis will be populated here -->
+                        </div>
+                    </div>
+                    
+                    <div class="results-actions">
+                        <button class="btn btn-primary" onclick="restartQuiz()">
+                            <i class="fas fa-redo"></i> Try Again
+                        </button>
+                        <button class="btn btn-secondary" onclick="uploadNewFile()">
+                            <i class="fas fa-upload"></i> Upload New File
+                        </button>
+                        <button class="btn btn-info" onclick="downloadResults()">
+                            <i class="fas fa-download"></i> Download Results
+                        </button>
+                    </div>
+                </div>
+            </section>
+        </main>
+
+        <!-- Footer -->
+        <footer class="footer">
+            <p>&copy; 2024 BCS MCQ Practice System. Made with ❤️ for Special BCS preparation.</p>
+        </footer>
+    </div>
+
+    <!-- Toast Notifications -->
+    <div id="toast-container" class="toast-container"></div>
+
+    <script src="{{ url_for('static', filename='js/app.js') }}"></script>
+</body>
+</html> 
