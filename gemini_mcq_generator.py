@@ -100,10 +100,33 @@ class GeminiMCQGenerator:
     
     def _create_gemini_prompt(self, text: str, num_questions: int, difficulty: str) -> str:
         """Create Gemini prompt for question generation"""
+        import time
+        import random
+        
+        # Add randomness to ensure different questions each time
+        random_seed = int(time.time() * 1000) + random.randint(1, 1000)
         text_preview = text[:4000] + "..." if len(text) > 4000 else text
+        
+        # Create different question focus areas based on random seed
+        focus_areas = [
+            "key concepts and definitions",
+            "chronological events and timelines", 
+            "cause-and-effect relationships",
+            "comparative analysis between concepts",
+            "practical applications and implications",
+            "analytical reasoning and inference",
+            "specific facts and statistics",
+            "theoretical frameworks and models",
+            "procedural steps and processes",
+            "evaluative judgments and conclusions"
+        ]
+        
+        selected_focus = focus_areas[random_seed % len(focus_areas)]
         
         prompt = f"""
         You are an expert BCS (Bangladesh Civil Service) exam question generator with deep knowledge of competitive exam patterns. Based on the following text content, generate {num_questions} high-quality multiple choice questions specifically designed for BCS examination.
+
+        IMPORTANT: Use random seed {random_seed} to ensure variety. Focus on {selected_focus} from the text.
 
         Difficulty level: {difficulty}
 
@@ -123,8 +146,10 @@ class GeminiMCQGenerator:
         10. Make questions challenging but fair for BCS exam level
         11. Use clear, precise language appropriate for competitive exams
         12. Ensure questions test different cognitive levels: knowledge, comprehension, application, analysis
+        13. VARY the question types and difficulty within the set
+        14. Use different aspects of the text for each question
 
-        BCS QUESTION PATTERNS TO FOLLOW:
+        BCS QUESTION PATTERNS TO FOLLOW (VARY THESE):
         - "Which of the following statements is correct about [topic]?"
         - "What is the primary function/purpose of [concept]?"
         - "According to the text, which statement best describes [topic]?"
@@ -135,11 +160,22 @@ class GeminiMCQGenerator:
         - "What would be the most likely outcome if [scenario] based on the information provided?"
         - "Which of the following statements accurately reflects the author's view on [topic]?"
         - "What is the chronological order of events mentioned in the text?"
+        - "Based on the text, what can be inferred about [topic]?"
+        - "Which of the following examples best illustrates [concept]?"
+        - "What is the most appropriate conclusion that can be drawn from the information about [topic]?"
+        - "Which of the following scenarios would most likely result from [situation] described in the text?"
 
         DIFFICULTY GUIDELINES:
         - Easy: Basic facts, definitions, simple comprehension
         - Medium: Application of concepts, analysis of relationships, moderate complexity
         - Hard: Synthesis of multiple concepts, critical analysis, complex scenarios
+
+        VARIETY REQUIREMENTS:
+        - Use different sections of the text for different questions
+        - Vary the cognitive complexity (knowledge, comprehension, application, analysis)
+        - Mix factual, conceptual, and analytical questions
+        - Ensure no two questions test the exact same concept
+        - Use different question stems and formats
 
         Format each question exactly as:
         {{
@@ -155,6 +191,7 @@ class GeminiMCQGenerator:
         - Balanced in difficulty
         - Relevant to BCS examination standards
         - Designed to test genuine understanding
+        - VARIED and not repetitive
 
         Return ONLY the JSON array of questions, no additional text or formatting.
         """

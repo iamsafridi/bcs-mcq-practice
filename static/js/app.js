@@ -4,6 +4,8 @@ let currentQuestions = [];
 let currentQuestionIndex = 0;
 let userAnswers = {};
 let quizScore = 0;
+let quizHistory = JSON.parse(localStorage.getItem('quizHistory') || '[]');
+let performanceStats = JSON.parse(localStorage.getItem('performanceStats') || '{}');
 
 // DOM elements
 const uploadArea = document.getElementById('upload-area');
@@ -556,4 +558,255 @@ function clearTextInput() {
     window.uploadedContent = null;
     window.contentType = null;
     showToast('Text cleared!', 'success');
-} 
+}
+
+// Professional Features
+
+// Navigation and Section Management
+function showSection(sectionId) {
+    // Hide all sections
+    document.querySelectorAll('.section').forEach(section => {
+        section.style.display = 'none';
+    });
+    
+    // Show target section
+    const targetSection = document.getElementById(sectionId);
+    if (targetSection) {
+        targetSection.style.display = 'block';
+    }
+    
+    // Update navigation tabs
+    document.querySelectorAll('.nav-tab').forEach(tab => {
+        tab.classList.remove('active');
+    });
+    
+    // Find and activate corresponding tab
+    const activeTab = document.querySelector(`[onclick="showSection('${sectionId}')"]`);
+    if (activeTab) {
+        activeTab.classList.add('active');
+    }
+    
+    // Show dashboard tab if we have quiz history
+    if (quizHistory.length > 0) {
+        const dashboardTab = document.getElementById('dashboard-tab');
+        if (dashboardTab) {
+            dashboardTab.style.display = 'inline-flex';
+        }
+    }
+}
+
+// Dashboard Functions
+function updateDashboard() {
+    if (quizHistory.length === 0) return;
+    
+    // Update metrics
+    const totalQuizzes = quizHistory.length;
+    const totalQuestions = quizHistory.reduce((sum, quiz) => sum + quiz.totalQuestions, 0);
+    const avgScore = Math.round(quizHistory.reduce((sum, quiz) => sum + quiz.score, 0) / totalQuizzes);
+    
+    document.getElementById('total-quizzes').textContent = totalQuizzes;
+    document.getElementById('avg-score').textContent = avgScore + '%';
+    document.getElementById('questions-answered').textContent = totalQuestions;
+    
+    // Update recent scores
+    const recentScoresContainer = document.getElementById('recent-scores');
+    recentScoresContainer.innerHTML = '';
+    
+    const recentQuizzes = quizHistory.slice(-5).reverse();
+    recentQuizzes.forEach(quiz => {
+        const scoreItem = document.createElement('div');
+        scoreItem.className = 'score-item';
+        scoreItem.innerHTML = `
+            <span class="score">${quiz.score}%</span>
+            <span class="date">${new Date(quiz.date).toLocaleDateString()}</span>
+        `;
+        recentScoresContainer.appendChild(scoreItem);
+    });
+}
+
+// Enhanced Results with History
+function saveQuizResults() {
+    const quizResult = {
+        date: new Date().toISOString(),
+        score: Math.round((quizScore / currentQuestions.length) * 100),
+        correctAnswers: quizScore,
+        totalQuestions: currentQuestions.length,
+        difficulty: document.getElementById('difficulty').value,
+        questions: currentQuestions.length
+    };
+    
+    quizHistory.push(quizResult);
+    localStorage.setItem('quizHistory', JSON.stringify(quizHistory));
+    
+    // Update performance stats
+    updatePerformanceStats(quizResult);
+    
+    // Update dashboard
+    updateDashboard();
+}
+
+function updatePerformanceStats(quizResult) {
+    const difficulty = quizResult.difficulty;
+    if (!performanceStats[difficulty]) {
+        performanceStats[difficulty] = {
+            totalQuizzes: 0,
+            totalScore: 0,
+            bestScore: 0,
+            averageScore: 0
+        };
+    }
+    
+    const stats = performanceStats[difficulty];
+    stats.totalQuizzes++;
+    stats.totalScore += quizResult.score;
+    stats.averageScore = Math.round(stats.totalScore / stats.totalQuizzes);
+    
+    if (quizResult.score > stats.bestScore) {
+        stats.bestScore = quizResult.score;
+    }
+    
+    localStorage.setItem('performanceStats', JSON.stringify(performanceStats));
+}
+
+// Enhanced Settings
+function resetSettings() {
+    document.getElementById('num-questions').value = '10';
+    document.getElementById('difficulty').value = 'medium';
+    document.getElementById('time-limit').value = '0';
+    
+    // Reset checkboxes
+    document.getElementById('factual-questions').checked = true;
+    document.getElementById('conceptual-questions').checked = true;
+    document.getElementById('analytical-questions').checked = true;
+    
+    showToast('Settings reset to default!', 'info');
+}
+
+// Enhanced MCQ Generation with Advanced Settings
+async function generateMCQ() {
+    const numQuestions = document.getElementById('num-questions').value;
+    const difficulty = document.getElementById('difficulty').value;
+    const timeLimit = document.getElementById('time-limit').value;
+    
+    // Get question types
+    const questionTypes = [];
+    if (document.getElementById('factual-questions').checked) questionTypes.push('factual');
+    if (document.getElementById('conceptual-questions').checked) questionTypes.push('conceptual');
+    if (document.getElementById('analytical-questions').checked) questionTypes.push('analytical');
+    
+    if (questionTypes.length === 0) {
+        showToast('Please select at least one question type!', 'error');
+        return;
+    }
+    
+    if (!window.uploadedContent && !window.uploadedFile) {
+        showToast('Please upload a file or enter text first!', 'error');
+        return;
+    }
+    
+    try {
+        showSection('loading-section');
+        hideSection('settings-section');
+        
+        const formData = new FormData();
+        formData.append('num_questions', numQuestions);
+        formData.append('difficulty', difficulty);
+        formData.append('time_limit', timeLimit);
+        formData.append('question_types', JSON.stringify(questionTypes));
+        
+        // Add content based on type
+        if (window.contentType === 'text') {
+            formData.append('text_content', window.uploadedContent);
+        } else {
+            formData.append('file', window.uploadedFile);
+        }
+        
+        const response = await fetch('/generate-mcq', {
+            method: 'POST',
+            body: formData
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            currentQuestions = data.questions;
+            currentQuestionIndex = 0;
+            userAnswers = {};
+            quizScore = 0;
+            
+            // Start timer if time limit is set
+            if (timeLimit > 0) {
+                startTimer(parseInt(timeLimit));
+            }
+            
+            showToast(`Generated ${data.total_questions} questions!`, 'success');
+            startQuiz();
+        } else {
+            showToast(data.error || 'Failed to generate questions', 'error');
+            showSection('settings-section');
+        }
+    } catch (error) {
+        console.error('Generation error:', error);
+        showToast('Failed to generate questions. Please try again.', 'error');
+        showSection('settings-section');
+    }
+    
+    hideSection('loading-section');
+}
+
+// Timer functionality
+let timerInterval = null;
+let timeRemaining = 0;
+
+function startTimer(seconds) {
+    timeRemaining = seconds;
+    updateTimerDisplay();
+    
+    timerInterval = setInterval(() => {
+        timeRemaining--;
+        updateTimerDisplay();
+        
+        if (timeRemaining <= 0) {
+            clearInterval(timerInterval);
+            showToast('Time\'s up! Submitting quiz...', 'info');
+            showResults();
+        }
+    }, 1000);
+}
+
+function updateTimerDisplay() {
+    const minutes = Math.floor(timeRemaining / 60);
+    const seconds = timeRemaining % 60;
+    const timeString = `${minutes}:${seconds.toString().padStart(2, '0')}`;
+    
+    // Add timer to quiz header if it doesn't exist
+    let timerElement = document.getElementById('timer');
+    if (!timerElement) {
+        timerElement = document.createElement('div');
+        timerElement.id = 'timer';
+        timerElement.className = 'timer';
+        document.querySelector('.quiz-stats').appendChild(timerElement);
+    }
+    
+    timerElement.textContent = `Time: ${timeString}`;
+    timerElement.style.color = timeRemaining <= 30 ? '#dc3545' : '#495057';
+}
+
+// Enhanced Results Display
+function showResults() {
+    if (timerInterval) {
+        clearInterval(timerInterval);
+    }
+    
+    calculateScore();
+    saveQuizResults();
+    displayResults();
+    displayDetailedResults();
+    showSection('results-section');
+}
+
+// Initialize dashboard on load
+document.addEventListener('DOMContentLoaded', function() {
+    initializeEventListeners();
+    updateDashboard();
+}); 
