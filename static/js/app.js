@@ -27,14 +27,28 @@ function initializeEventListeners() {
     uploadArea.addEventListener('dragover', handleDragOver);
     uploadArea.addEventListener('dragleave', handleDragLeave);
     uploadArea.addEventListener('drop', handleDrop);
-    uploadArea.addEventListener('click', () => fileInput.click());
+    
+    // Only trigger file input on click if no file is selected
+    uploadArea.addEventListener('click', (e) => {
+        // Prevent triggering if clicking on file info or remove button
+        if (!e.target.closest('.file-info') && !e.target.closest('.btn')) {
+            fileInput.click();
+        }
+    });
 }
 
 // File handling functions
+let isProcessingFile = false;
+
 function handleFileSelect(event) {
     const file = event.target.files[0];
-    if (file) {
+    if (file && !isProcessingFile) {
+        isProcessingFile = true;
         processFile(file);
+        // Reset flag after a short delay
+        setTimeout(() => {
+            isProcessingFile = false;
+        }, 1000);
     }
 }
 
@@ -59,18 +73,26 @@ function handleDrop(event) {
 }
 
 function processFile(file) {
+    // Prevent double processing
+    if (window.uploadedFile && window.uploadedFile.name === file.name) {
+        isProcessingFile = false;
+        return;
+    }
+    
     // Validate file type
     const allowedTypes = ['.pdf', '.docx', '.doc', '.txt'];
     const fileExtension = '.' + file.name.split('.').pop().toLowerCase();
     
     if (!allowedTypes.includes(fileExtension)) {
         showToast('Please select a valid file type (PDF, DOCX, DOC, or TXT)', 'error');
+        isProcessingFile = false;
         return;
     }
     
     // Validate file size (16MB max)
     if (file.size > 16 * 1024 * 1024) {
         showToast('File size must be less than 16MB', 'error');
+        isProcessingFile = false;
         return;
     }
     
@@ -106,6 +128,7 @@ function removeFile() {
     window.uploadedFile = null;
     window.contentType = null;
     hideSection('settings-section');
+    showToast('File removed successfully!', 'info');
 }
 
 
@@ -409,10 +432,6 @@ function uploadNewFile() {
 }
 
 // Utility functions
-function showSection(sectionId) {
-    document.getElementById(sectionId).style.display = 'block';
-}
-
 function hideSection(sectionId) {
     document.getElementById(sectionId).style.display = 'none';
 }
