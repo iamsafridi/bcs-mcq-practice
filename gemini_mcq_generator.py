@@ -67,13 +67,31 @@ class GeminiMCQGenerator:
     
     def _generate_with_gemini(self, text: str, num_questions: int, difficulty: str) -> List[Dict[str, Any]]:
         """Generate questions using Gemini AI"""
-        # Language detection
+        # Improved language detection
         def is_bangla(text):
             bangla_chars = sum(1 for c in text if '\u0980' <= c <= '\u09FF')
-            return bangla_chars > 0.3 * len(text)
+            total_chars = len([c for c in text if c.isalpha() or '\u0980' <= c <= '\u09FF'])
+            
+            if total_chars == 0:
+                return False
+            
+            bangla_ratio = bangla_chars / total_chars
+            
+            # More sensitive detection: if more than 15% of alphabetic characters are Bangla
+            return bangla_ratio > 0.15 or bangla_chars > 5
         
         is_bangla_text = is_bangla(text)
-        language_instruction = "All questions, options, and explanations must be in Bangla (বাংলা ভাষা) if the input text is in Bangla. Otherwise, use English." if is_bangla_text else "Use English."
+        print(f"Language detection: {'Bangla' if is_bangla_text else 'English'} (Bangla chars: {sum(1 for c in text if '\u0980' <= c <= '\u09FF')})")
+        
+        if is_bangla_text:
+            language_instruction = """
+            IMPORTANT: Generate all questions, options, and explanations in Bangla (বাংলা ভাষা).
+            Use proper Bangla grammar and vocabulary.
+            Questions should be in Bangla format like: "বিসিএস পরীক্ষায় কোন বিষয় অন্তর্ভুক্ত?"
+            Options should be in Bangla like: "ক) বাংলা ভাষা খ) ইংরেজি ভাষা গ) গণিত ঘ) বিজ্ঞান"
+            """
+        else:
+            language_instruction = "Generate questions in English."
         
         # Improved prompt with better instructions
         prompt = f"""
@@ -88,6 +106,7 @@ class GeminiMCQGenerator:
         3. Only one option should be correct
         4. Make options realistic and plausible
         5. Provide clear explanations for correct answers
+        6. Maintain the same language as the input text
         
         Format each question exactly as:
         {{
