@@ -81,7 +81,8 @@ class GeminiMCQGenerator:
             return bangla_ratio > 0.15 or bangla_chars > 5
         
         is_bangla_text = is_bangla(text)
-        print(f"Language detection: {'Bangla' if is_bangla_text else 'English'} (Bangla chars: {sum(1 for c in text if '\u0980' <= c <= '\u09FF')})")
+        bangla_char_count = sum(1 for c in text if '\u0980' <= c <= '\u09FF')
+        print(f"Language detection: {'Bangla' if is_bangla_text else 'English'} (Bangla chars: {bangla_char_count})")
         
         if is_bangla_text:
             language_instruction = """
