@@ -166,10 +166,16 @@
                                     <i class="fas fa-list-ol"></i> Number of Questions:
                                 </label>
                                 <select id="num-questions" class="form-control">
-                                    <option value="5">5 Questions (Quick Practice)</option>
                                     <option value="10" selected>10 Questions (Standard)</option>
-                                    <option value="15">15 Questions (Extended)</option>
-                                    <option value="20">20 Questions (Comprehensive)</option>
+                                    <option value="20">20 Questions</option>
+                                    <option value="30">30 Questions</option>
+                                    <option value="40">40 Questions</option>
+                                    <option value="50">50 Questions</option>
+                                    <option value="60">60 Questions</option>
+                                    <option value="70">70 Questions</option>
+                                    <option value="80">80 Questions</option>
+                                    <option value="90">90 Questions</option>
+                                    <option value="100">100 Questions</option>
                                 </select>
                             </div>
                             
@@ -247,7 +253,7 @@
                         <div class="quiz-info">
                             <h2><i class="fas fa-question-circle"></i> MCQ Quiz</h2>
                             <div class="quiz-stats">
-                                <span id="question-counter">Question 1 of 10</span>
+                                <span id="question-counter">Questions 1-5 of 10</span>
                                 <span id="score-display">Score: 0/0</span>
                             </div>
                         </div>
@@ -255,22 +261,16 @@
                             <div class="progress-fill" id="progress-fill"></div>
                         </div>
                     </div>
-                    
-                    <div class="question-container">
-                        <div class="question" id="question-text"></div>
-                        
-                        <div class="options-container" id="options-container">
-                            <!-- Options will be populated here -->
-                        </div>
-                        
-                        <div class="question-actions">
-                            <button class="btn btn-secondary" id="prev-btn" onclick="previousQuestion()" disabled>
-                                <i class="fas fa-arrow-left"></i> Previous
-                            </button>
-                            <button class="btn btn-primary" id="next-btn" onclick="nextQuestion()">
-                                Next <i class="fas fa-arrow-right"></i>
-                            </button>
-                        </div>
+                    <div class="question-container" id="multi-question-container">
+                        <!-- 5 questions will be rendered here by JS -->
+                    </div>
+                    <div class="question-actions">
+                        <button class="btn btn-secondary" id="prev-batch-btn" onclick="previousBatch()" disabled>
+                            <i class="fas fa-arrow-left"></i> Previous 5
+                        </button>
+                        <button class="btn btn-primary" id="next-batch-btn" onclick="nextBatch()">
+                            Next 5 <i class="fas fa-arrow-right"></i>
+                        </button>
                     </div>
                 </div>
             </section>
@@ -285,6 +285,7 @@
                                 <span id="final-score">0%</span>
                             </div>
                             <div class="score-details">
+                                <div id="total-score-achieved" style="font-size:1.2em;font-weight:600;margin-bottom:6px;color:#333;"></div>
                                 <p>Correct Answers: <span id="correct-count">0</span></p>
                                 <p>Total Questions: <span id="total-count">0</span></p>
                                 <p>Accuracy: <span id="accuracy-rate">0%</span></p>

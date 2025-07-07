@@ -143,8 +143,6 @@ function removeFile() {
     showToast('File removed successfully!', 'info');
 }
 
-
-
 // MCQ Generation function
 async function generateMCQ() {
     const numQuestions = document.getElementById('num-questions').value;
@@ -198,100 +196,141 @@ async function generateMCQ() {
     hideSection('loading-section');
 }
 
-// Quiz functions
+// --- BATCHED QUIZ LOGIC ---
+const QUESTIONS_PER_BATCH = 5;
+let currentBatchIndex = 0; // 0-based
+
 function startQuiz() {
     showSection('quiz-section');
-    displayQuestion();
+    currentBatchIndex = 0;
+    renderBatch();
     updateProgress();
 }
 
-function displayQuestion() {
-    if (currentQuestionIndex >= currentQuestions.length) {
-        showResults();
-        return;
+function renderBatch() {
+    const start = currentBatchIndex * QUESTIONS_PER_BATCH;
+    const end = Math.min(start + QUESTIONS_PER_BATCH, currentQuestions.length);
+    const container = document.getElementById('multi-question-container');
+    container.innerHTML = '';
+    for (let i = start; i < end; i++) {
+        const q = currentQuestions[i];
+        const qDiv = document.createElement('div');
+        qDiv.className = 'multi-question-block';
+        // Question text
+        const qText = document.createElement('div');
+        qText.className = 'question';
+        qText.textContent = `${i + 1}. ${q.question}`;
+        qDiv.appendChild(qText);
+        // Options
+        const optsDiv = document.createElement('div');
+        optsDiv.className = 'options-container';
+        q.options.forEach((opt, optIdx) => {
+            const optId = `q${i}-opt${optIdx}`;
+            const label = document.createElement('label');
+            label.className = 'option-radio-label';
+            // Radio input
+            const radio = document.createElement('input');
+            radio.type = 'radio';
+            radio.name = `question-${i}`;
+            radio.id = optId;
+            radio.value = optIdx;
+            radio.className = 'option-radio';
+            if (userAnswers[i] !== undefined) {
+                radio.checked = userAnswers[i] === optIdx;
+                radio.disabled = true;
+            }
+            radio.addEventListener('change', function(e) {
+                if (userAnswers[i] === undefined) {
+                    userAnswers[i] = optIdx;
+                    // Lock all radios for this question
+                    const radios = document.getElementsByName(`question-${i}`);
+                    radios.forEach(r => r.disabled = true);
+                    // Update navigation state immediately
+                    updateBatchNavigation();
+                }
+            });
+            // Round A/B/C/D
+            const round = document.createElement('span');
+            round.className = 'option-round';
+            round.textContent = String.fromCharCode(65 + optIdx);
+            // Only clicking the round triggers the radio
+            round.addEventListener('click', function(e) {
+                if (!radio.disabled) {
+                    radio.checked = true;
+                    radio.dispatchEvent(new Event('change', { bubbles: true }));
+                }
+            });
+            label.appendChild(radio);
+            label.appendChild(round);
+            // Option text (no click event)
+            const optText = document.createElement('span');
+            optText.className = 'option-text';
+            optText.textContent = opt.replace(/^\w\)\s*/, '');
+            optText.style.pointerEvents = 'none';
+            optText.style.userSelect = 'none';
+            label.appendChild(optText);
+            // On mobile, also prevent label text from being clickable
+            label.addEventListener('touchstart', function(e) {
+                if (e.target === optText) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                }
+            }, {passive: false});
+            optsDiv.appendChild(label);
+        });
+        qDiv.appendChild(optsDiv);
+        container.appendChild(qDiv);
     }
-    
-    const question = currentQuestions[currentQuestionIndex];
-    
-    // Display question
-    document.getElementById('question-text').textContent = question.question;
-    
-    // Display options
-    const optionsContainer = document.getElementById('options-container');
-    optionsContainer.innerHTML = '';
-    
-    question.options.forEach((option, index) => {
-        const optionElement = document.createElement('div');
-        optionElement.className = 'option';
-        optionElement.textContent = option;
-        optionElement.onclick = () => selectOption(index);
-        
-        // Mark if already answered
-        if (userAnswers[currentQuestionIndex] === index) {
-            optionElement.classList.add('selected');
-        }
-        
-        optionsContainer.appendChild(optionElement);
-    });
-    
-    // Update navigation buttons
-    updateNavigationButtons();
-    updateQuestionCounter();
+    updateBatchNavigation();
+    updateBatchCounter();
 }
 
-function selectOption(optionIndex) {
-    // Remove previous selection
-    const options = document.querySelectorAll('.option');
-    options.forEach(option => option.classList.remove('selected'));
-    
-    // Select new option
-    options[optionIndex].classList.add('selected');
-    userAnswers[currentQuestionIndex] = optionIndex;
-    
-    // Enable next button
-    document.getElementById('next-btn').disabled = false;
-}
-
-function nextQuestion() {
-    if (currentQuestionIndex < currentQuestions.length - 1) {
-        currentQuestionIndex++;
-        displayQuestion();
+function nextBatch() {
+    const maxBatch = Math.floor((currentQuestions.length - 1) / QUESTIONS_PER_BATCH);
+    if (currentBatchIndex < maxBatch) {
+        currentBatchIndex++;
+        renderBatch();
         updateProgress();
     } else {
         showResults();
     }
 }
 
-function previousQuestion() {
-    if (currentQuestionIndex > 0) {
-        currentQuestionIndex--;
-        displayQuestion();
+function previousBatch() {
+    if (currentBatchIndex > 0) {
+        currentBatchIndex--;
+        renderBatch();
         updateProgress();
     }
 }
 
-function updateNavigationButtons() {
-    const prevBtn = document.getElementById('prev-btn');
-    const nextBtn = document.getElementById('next-btn');
-    
-    prevBtn.disabled = currentQuestionIndex === 0;
-    nextBtn.disabled = userAnswers[currentQuestionIndex] === undefined;
-    
-    if (currentQuestionIndex === currentQuestions.length - 1) {
+function updateBatchNavigation() {
+    const prevBtn = document.getElementById('prev-batch-btn');
+    const nextBtn = document.getElementById('next-batch-btn');
+    prevBtn.disabled = currentBatchIndex === 0;
+    const maxBatch = Math.floor((currentQuestions.length - 1) / QUESTIONS_PER_BATCH);
+    // Next is disabled only if all batches are done and all questions in last batch are answered
+    const start = currentBatchIndex * QUESTIONS_PER_BATCH;
+    const end = Math.min(start + QUESTIONS_PER_BATCH, currentQuestions.length);
+    let allAnswered = true;
+    for (let i = start; i < end; i++) {
+        if (userAnswers[i] === undefined) {
+            allAnswered = false;
+            break;
+        }
+    }
+    nextBtn.disabled = !allAnswered;
+    if (currentBatchIndex === maxBatch) {
         nextBtn.innerHTML = 'Finish <i class="fas fa-check"></i>';
     } else {
-        nextBtn.innerHTML = 'Next <i class="fas fa-arrow-right"></i>';
+        nextBtn.innerHTML = 'Next 5 <i class="fas fa-arrow-right"></i>';
     }
 }
 
-function updateQuestionCounter() {
-    document.getElementById('question-counter').textContent = 
-        `Question ${currentQuestionIndex + 1} of ${currentQuestions.length}`;
-}
-
-function updateProgress() {
-    const progress = ((currentQuestionIndex + 1) / currentQuestions.length) * 100;
-    document.getElementById('progress-fill').style.width = progress + '%';
+function updateBatchCounter() {
+    const start = currentBatchIndex * QUESTIONS_PER_BATCH + 1;
+    const end = Math.min(start + QUESTIONS_PER_BATCH - 1, currentQuestions.length);
+    document.getElementById('question-counter').textContent = `Questions ${start}-${end} of ${currentQuestions.length}`;
 }
 
 // Results functions
@@ -305,34 +344,57 @@ function showResults() {
 
 function calculateScore() {
     quizScore = 0;
+    let negativeMarks = 0;
     currentQuestions.forEach((question, index) => {
         if (userAnswers[index] !== undefined) {
             const selectedAnswer = String.fromCharCode(65 + userAnswers[index]); // Convert to A, B, C, D
             if (selectedAnswer === question.correct_answer) {
                 quizScore++;
+            } else {
+                negativeMarks += 0.25;
             }
         }
     });
+    quizScore = quizScore - negativeMarks;
+    if (quizScore < 0) quizScore = 0;
+    window.negativeMarks = negativeMarks;
 }
 
 function displayResults() {
-    const percentage = Math.round((quizScore / currentQuestions.length) * 100);
-    const incorrectCount = currentQuestions.length - quizScore;
-    const unansweredCount = currentQuestions.length - Object.keys(userAnswers).length;
-    
+    const totalQuestions = currentQuestions.length;
+    const correctCount = currentQuestions.reduce((acc, question, index) => {
+        const selectedAnswer = userAnswers[index] !== undefined ? String.fromCharCode(65 + userAnswers[index]) : null;
+        return acc + (selectedAnswer === question.correct_answer ? 1 : 0);
+    }, 0);
+    const incorrectCount = totalQuestions - correctCount - (totalQuestions - Object.keys(userAnswers).length);
+    const unansweredCount = totalQuestions - Object.keys(userAnswers).length;
+    const percentage = Math.round((quizScore / totalQuestions) * 100);
+    // Show total score achieved (including negative marking)
+    const totalScoreElem = document.getElementById('total-score-achieved');
+    if (totalScoreElem) {
+        totalScoreElem.textContent = `Total Score: ${quizScore} / ${totalQuestions}`;
+    }
     // Update main score display
     document.getElementById('final-score').textContent = percentage + '%';
-    document.getElementById('correct-count').textContent = quizScore;
-    document.getElementById('total-count').textContent = currentQuestions.length;
+    document.getElementById('correct-count').textContent = correctCount;
+    document.getElementById('total-count').textContent = totalQuestions;
     document.getElementById('accuracy-rate').textContent = percentage + '%';
-    
     // Update performance summary
-    document.getElementById('correct-summary').textContent = quizScore;
+    document.getElementById('correct-summary').textContent = correctCount;
     document.getElementById('incorrect-summary').textContent = incorrectCount;
     document.getElementById('unanswered-summary').textContent = unansweredCount;
-    
     // Update score display
-    document.getElementById('score-display').textContent = `Score: ${quizScore}/${currentQuestions.length}`;
+    document.getElementById('score-display').textContent = `Score: ${quizScore}/${totalQuestions}`;
+    // Show negative marking info
+    let negMarkElem = document.getElementById('negative-mark-info');
+    if (!negMarkElem) {
+        negMarkElem = document.createElement('div');
+        negMarkElem.id = 'negative-mark-info';
+        negMarkElem.style.marginTop = '10px';
+        negMarkElem.style.color = '#dc3545';
+        document.querySelector('.score-details').appendChild(negMarkElem);
+    }
+    negMarkElem.textContent = `Negative marks: -${window.negativeMarks || 0}`;
 }
 
 function displayDetailedResults() {
@@ -555,7 +617,8 @@ function addMobileEnhancements() {
 // Call mobile enhancements when quiz starts
 function startQuiz() {
     showSection('quiz-section');
-    displayQuestion();
+    currentBatchIndex = 0;
+    renderBatch();
     updateProgress();
     addMobileEnhancements();
 }
@@ -840,4 +903,15 @@ function showResults() {
 document.addEventListener('DOMContentLoaded', function() {
     initializeEventListeners();
     updateDashboard();
-}); 
+});
+
+function updateProgress() {
+    // Calculate progress based on answered questions
+    let answered = 0;
+    for (let i = 0; i < currentQuestions.length; i++) {
+        if (userAnswers[i] !== undefined) answered++;
+    }
+    const percent = (answered / currentQuestions.length) * 100;
+    const fill = document.getElementById('progress-fill');
+    if (fill) fill.style.width = percent + '%';
+} 

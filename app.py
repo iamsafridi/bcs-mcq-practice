@@ -90,55 +90,46 @@ def generate_mcq():
             file = request.files['file']
             if file.filename == '':
                 return jsonify({'error': 'No file selected'}), 400
-            
             # Generate unique filename
             filename = secure_filename(file.filename)
             unique_filename = f"{uuid.uuid4()}_{filename}"
             filepath = os.path.join(app.config['UPLOAD_FOLDER'], unique_filename)
-            
             # Save file
             file.save(filepath)
-            
             # Extract text from file
             extracted_text = file_handler.extract_text(filepath)
-            
             if not extracted_text:
                 return jsonify({'error': 'Could not extract text from file'}), 400
-            
             # Process and clean text
             processed_text = text_processor.process_text(extracted_text)
-            
         elif 'text_content' in request.form:
             # Handle text input
             text_content = request.form['text_content']
             if not text_content or len(text_content.strip()) < 50:
                 return jsonify({'error': 'Please provide at least 50 characters of text'}), 400
-            
             # Process and clean text
             processed_text = text_processor.process_text(text_content.strip())
-            
         else:
             return jsonify({'error': 'No content provided'}), 400
-        
         # Get quiz settings
         num_questions = int(request.form.get('num_questions', 10))
         difficulty = request.form.get('difficulty', 'medium')
-        
         # Generate MCQ questions
-        mcq_questions = mcq_generator.generate_questions(
-            processed_text,
-            num_questions=num_questions,
-            difficulty=difficulty
-        )
-        
+        try:
+            mcq_questions = mcq_generator.generate_questions(
+                processed_text,
+                num_questions=num_questions,
+                difficulty=difficulty
+            )
+        except Exception as e:
+            return jsonify({'success': False, 'error': f'MCQ generation failed: {str(e)}'}), 500
         return jsonify({
             'success': True,
             'questions': mcq_questions,
             'total_questions': len(mcq_questions)
         })
-    
     except Exception as e:
-        return jsonify({'error': str(e)}), 500
+        return jsonify({'success': False, 'error': f'Internal server error: {str(e)}'}), 500
 
 @app.route('/submit-answer', methods=['POST'])
 def submit_answer():

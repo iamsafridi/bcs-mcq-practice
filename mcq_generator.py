@@ -59,9 +59,8 @@ class MCQGenerator:
             List of MCQ questions with options and answers
         """
         if not text:
-            return self.fallback_questions[:num_questions]
-        
-        # Use Gemini generator
+            raise Exception("No text provided for MCQ generation.")
+        # Use Gemini generator (exceptions will propagate)
         return self.gemini_generator.generate_questions(text, num_questions, difficulty)
     
 
