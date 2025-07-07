@@ -2,6 +2,8 @@ import PyPDF2
 import docx
 import os
 from typing import Optional
+import pdfplumber
+import fitz  # PyMuPDF
 
 class FileHandler:
     """Handles file upload and text extraction from various formats"""
@@ -37,18 +39,58 @@ class FileHandler:
             return None
     
     def _extract_from_pdf(self, filepath: str) -> str:
-        """Extract text from PDF file"""
+        """Extract text from PDF file with enhanced Bangla support"""
+        text = ""
+        
+        # Try pdfplumber first (best for complex scripts like Bangla)
         try:
-            with open(filepath, 'rb') as file:
-                pdf_reader = PyPDF2.PdfReader(file)
-                text = ""
-                
-                for page in pdf_reader.pages:
-                    text += page.extract_text() + "\n"
-                
+            print("Attempting PDF extraction with pdfplumber...")
+            with pdfplumber.open(filepath) as pdf:
+                for page in pdf.pages:
+                    page_text = page.extract_text()
+                    if page_text:
+                        text += page_text + "\n"
+            
+            if text.strip():
+                print("Successfully extracted text using pdfplumber")
                 return text.strip()
         except Exception as e:
-            raise Exception(f"Failed to extract text from PDF: {str(e)}")
+            print(f"pdfplumber failed: {str(e)}")
+        
+        # Try PyMuPDF (fitz) as second option
+        try:
+            print("Attempting PDF extraction with PyMuPDF...")
+            doc = fitz.open(filepath)
+            for page in doc:
+                page_text = page.get_text()
+                if page_text:
+                    text += page_text + "\n"
+            doc.close()
+            
+            if text.strip():
+                print("Successfully extracted text using PyMuPDF")
+                return text.strip()
+        except Exception as e:
+            print(f"PyMuPDF failed: {str(e)}")
+        
+        # Fallback to PyPDF2 (original method)
+        try:
+            print("Attempting PDF extraction with PyPDF2 (fallback)...")
+            with open(filepath, 'rb') as file:
+                pdf_reader = PyPDF2.PdfReader(file)
+                for page in pdf_reader.pages:
+                    page_text = page.extract_text()
+                    if page_text:
+                        text += page_text + "\n"
+            
+            if text.strip():
+                print("Successfully extracted text using PyPDF2")
+                return text.strip()
+        except Exception as e:
+            print(f"PyPDF2 failed: {str(e)}")
+        
+        # If all methods fail
+        raise Exception("All PDF extraction methods failed. The PDF might be corrupted, password-protected, or contain unsupported content.")
     
     def _extract_from_docx(self, filepath: str) -> str:
         """Extract text from DOCX file"""

@@ -373,7 +373,7 @@ function calculateScore() {
             if (selectedAnswer === question.correct_answer) {
                 quizScore++;
             } else {
-                negativeMarks += 0.25;
+                negativeMarks += 0.5;
             }
         }
     });

@@ -6,14 +6,17 @@ class TextProcessor:
     """Processes and cleans extracted text for MCQ generation"""
     
     def __init__(self):
+        # Updated patterns to preserve Bangla characters
         self.noise_patterns = [
             r'\b\d+\s*\.\s*',  # Remove numbered lists
             r'^\s*[-*]\s*',    # Remove bullet points
             r'\s+',            # Multiple spaces
-            r'[^\w\s\.\,\;\:\!\?\-\(\)]',  # Remove special characters except basic punctuation
+            # More conservative pattern that preserves Bangla and other Unicode characters
+            r'[^\w\s\.\,\;\:\!\?\-\(\)\u0980-\u09FF\u2000-\u206F]',  # Preserve Bangla Unicode range
         ]
         
-        self.sentence_endings = ['.', '!', '?', '।']  # Including Bengali full stop
+        # Updated sentence endings to include Bangla punctuation
+        self.sentence_endings = ['.', '!', '?', '।', '॥']  # Including Bengali punctuation
     
     def process_text(self, text: str) -> str:
         """
@@ -34,7 +37,7 @@ class TextProcessor:
         # Remove extra whitespace and normalize
         text = self._normalize_whitespace(text)
         
-        # Remove noise patterns
+        # Remove noise patterns (more carefully for Bangla)
         text = self._remove_noise(text)
         
         # Clean up punctuation
@@ -60,7 +63,7 @@ class TextProcessor:
         return '\n'.join(lines)
     
     def _remove_noise(self, text: str) -> str:
-        """Remove noise patterns from text"""
+        """Remove noise patterns from text while preserving Bangla"""
         for pattern in self.noise_patterns:
             text = re.sub(pattern, ' ', text)
         
@@ -106,16 +109,17 @@ class TextProcessor:
         Returns:
             List of key concepts
         """
-        # Split into sentences
-        sentences = re.split(r'[.!?।]', text)
+        # Split into sentences (including Bangla punctuation)
+        sentences = re.split(r'[.!?।॥]', text)
         sentences = [s.strip() for s in sentences if s.strip()]
         
         # Extract potential concepts (words that appear multiple times)
-        words = re.findall(r'\b\w+\b', text.lower())
+        # Updated pattern to include Bangla characters
+        words = re.findall(r'\b[\w\u0980-\u09FF]+\b', text.lower())
         word_freq = {}
         
         for word in words:
-            if len(word) > 3:  # Skip short words
+            if len(word) > 2:  # Reduced minimum length for Bangla words
                 word_freq[word] = word_freq.get(word, 0) + 1
         
         # Get most frequent words as concepts
@@ -135,7 +139,8 @@ class TextProcessor:
         Returns:
             List of text chunks
         """
-        sentences = re.split(r'[.!?।]', text)
+        # Updated to include Bangla punctuation
+        sentences = re.split(r'[.!?।॥]', text)
         chunks = []
         current_chunk = ""
         
