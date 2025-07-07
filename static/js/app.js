@@ -903,7 +903,7 @@ function showResults() {
 document.addEventListener('DOMContentLoaded', function() {
     initializeEventListeners();
     updateDashboard();
-});
+}); 
 
 function updateProgress() {
     // Calculate progress based on answered questions
