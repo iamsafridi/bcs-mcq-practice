@@ -2,6 +2,7 @@
 let currentSessionId = null;
 let currentQuestions = [];
 let currentQuestionIndex = 0;
+let currentBatchIndex = 0;
 let userAnswers = {};
 let quizScore = 0;
 let quizHistory = JSON.parse(localStorage.getItem('quizHistory') || '[]');
@@ -178,6 +179,7 @@ async function generateMCQ() {
         if (data.success) {
             currentQuestions = data.questions;
             currentQuestionIndex = 0;
+            currentBatchIndex = 0;
             userAnswers = {};
             quizScore = 0;
             
@@ -198,7 +200,6 @@ async function generateMCQ() {
 
 // --- BATCHED QUIZ LOGIC ---
 const QUESTIONS_PER_BATCH = 5;
-let currentBatchIndex = 0; // 0-based
 
 function startQuiz() {
     showSection('quiz-section');
@@ -210,17 +211,23 @@ function startQuiz() {
 function renderBatch() {
     const start = currentBatchIndex * QUESTIONS_PER_BATCH;
     const end = Math.min(start + QUESTIONS_PER_BATCH, currentQuestions.length);
+    console.log(`Rendering batch ${currentBatchIndex}: questions ${start + 1} to ${end} (indices ${start} to ${end - 1})`);
+    
     const container = document.getElementById('multi-question-container');
     container.innerHTML = '';
+    
     for (let i = start; i < end; i++) {
         const q = currentQuestions[i];
         const qDiv = document.createElement('div');
         qDiv.className = 'multi-question-block';
-        // Question text
+        
+        // Question text with correct numbering
         const qText = document.createElement('div');
         qText.className = 'question';
         qText.textContent = `${i + 1}. ${q.question}`;
+        console.log(`Question ${i + 1}: ${q.question.substring(0, 50)}...`);
         qDiv.appendChild(qText);
+        
         // Options
         const optsDiv = document.createElement('div');
         optsDiv.className = 'options-container';
@@ -228,6 +235,7 @@ function renderBatch() {
             const optId = `q${i}-opt${optIdx}`;
             const label = document.createElement('label');
             label.className = 'option-radio-label';
+            
             // Radio input
             const radio = document.createElement('input');
             radio.type = 'radio';
@@ -235,10 +243,12 @@ function renderBatch() {
             radio.id = optId;
             radio.value = optIdx;
             radio.className = 'option-radio';
+            
             if (userAnswers[i] !== undefined) {
                 radio.checked = userAnswers[i] === optIdx;
                 radio.disabled = true;
             }
+            
             radio.addEventListener('change', function(e) {
                 if (userAnswers[i] === undefined) {
                     userAnswers[i] = optIdx;
@@ -249,10 +259,12 @@ function renderBatch() {
                     updateBatchNavigation();
                 }
             });
+            
             // Round A/B/C/D
             const round = document.createElement('span');
             round.className = 'option-round';
             round.textContent = String.fromCharCode(65 + optIdx);
+            
             // Only clicking the round triggers the radio
             round.addEventListener('click', function(e) {
                 if (!radio.disabled) {
@@ -260,8 +272,10 @@ function renderBatch() {
                     radio.dispatchEvent(new Event('change', { bubbles: true }));
                 }
             });
+            
             label.appendChild(radio);
             label.appendChild(round);
+            
             // Option text (no click event)
             const optText = document.createElement('span');
             optText.className = 'option-text';
@@ -269,6 +283,7 @@ function renderBatch() {
             optText.style.pointerEvents = 'none';
             optText.style.userSelect = 'none';
             label.appendChild(optText);
+            
             // On mobile, also prevent label text from being clickable
             label.addEventListener('touchstart', function(e) {
                 if (e.target === optText) {
@@ -276,11 +291,14 @@ function renderBatch() {
                     e.stopPropagation();
                 }
             }, {passive: false});
+            
             optsDiv.appendChild(label);
         });
+        
         qDiv.appendChild(optsDiv);
         container.appendChild(qDiv);
     }
+    
     updateBatchNavigation();
     updateBatchCounter();
 }
@@ -291,6 +309,8 @@ function nextBatch() {
         currentBatchIndex++;
         renderBatch();
         updateProgress();
+        // Scroll to top of quiz container for better mobile experience
+        scrollToQuizTop();
     } else {
         showResults();
     }
@@ -301,6 +321,8 @@ function previousBatch() {
         currentBatchIndex--;
         renderBatch();
         updateProgress();
+        // Scroll to top of quiz container for better mobile experience
+        scrollToQuizTop();
     }
 }
 
@@ -486,6 +508,7 @@ function downloadResults() {
 
 function restartQuiz() {
     currentQuestionIndex = 0;
+    currentBatchIndex = 0;
     userAnswers = {};
     quizScore = 0;
     startQuiz();
@@ -495,7 +518,7 @@ function restartQuiz() {
 function uploadNewFile() {
     hideSection('results-section');
     showSection('upload-section');
-    
+    currentBatchIndex = 0;
     // Reset all inputs
     fileInput.value = '';
     fileInfo.style.display = 'none';
@@ -627,21 +650,18 @@ function startQuiz() {
 function useTextInput() {
     const textInput = document.getElementById('text-input');
     const text = textInput.value.trim();
-    
     if (!text) {
         showToast('Please enter some text first!', 'error');
         return;
     }
-    
     if (text.length < 50) {
         showToast('Please enter at least 50 characters for better question generation!', 'error');
         return;
     }
-    
     // Store the text content
     window.uploadedContent = text;
     window.contentType = 'text';
-    
+    currentBatchIndex = 0;
     // Show settings section
     showSection('settings-section');
     showToast('Text content ready! Configure your quiz settings.', 'success');
@@ -825,6 +845,7 @@ async function generateMCQ() {
         if (data.success) {
             currentQuestions = data.questions;
             currentQuestionIndex = 0;
+            currentBatchIndex = 0;
             userAnswers = {};
             quizScore = 0;
             
@@ -914,4 +935,15 @@ function updateProgress() {
     const percent = (answered / currentQuestions.length) * 100;
     const fill = document.getElementById('progress-fill');
     if (fill) fill.style.width = percent + '%';
+}
+
+function scrollToQuizTop() {
+    // Scroll to the top of the quiz section smoothly
+    const quizSection = document.getElementById('quiz-section');
+    if (quizSection) {
+        quizSection.scrollIntoView({ 
+            behavior: 'smooth', 
+            block: 'start' 
+        });
+    }
 } 
